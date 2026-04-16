@@ -1,5 +1,6 @@
 import asyncio
 import os
+import re
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -13,6 +14,7 @@ MAX_CONCURRENT_RENDER = max(1, int(os.getenv("MAX_CONCURRENT_RENDER", "2")))
 _render_semaphore = asyncio.Semaphore(MAX_CONCURRENT_RENDER)
 
 app = FastAPI(title="50genes Visualization API", version="1.0.0")
+SAFE_PATH_RE = re.compile(r"^[A-Za-z0-9._/-]+$")
 
 
 class RenderRequest(BaseModel):
@@ -28,11 +30,26 @@ class RenderResponse(BaseModel):
 
 
 def _resolve_safe_path(path_str: str) -> Path:
-    path_obj = Path(path_str).expanduser()
-    resolved = (BASE_DIR / path_obj).resolve() if not path_obj.is_absolute() else path_obj.resolve()
-    if resolved != BASE_DIR and BASE_DIR not in resolved.parents:
+    if "\x00" in path_str:
+        raise HTTPException(status_code=400, detail="Path contains invalid null byte.")
+    if not SAFE_PATH_RE.fullmatch(path_str):
+        raise HTTPException(status_code=400, detail="Path contains unsupported characters.")
+    if os.path.isabs(path_str):
+        raise HTTPException(status_code=400, detail="Absolute paths are not allowed. Use paths relative to base dir.")
+    normalized = os.path.normpath(path_str).replace("\\", "/")
+    if normalized in {".", ""}:
+        raise HTTPException(status_code=400, detail="Path must not be empty.")
+    if any(part == ".." for part in normalized.split("/")):
+        raise HTTPException(status_code=400, detail="Parent directory traversal is not allowed.")
+
+    candidate = os.path.abspath(os.path.join(str(BASE_DIR), normalized))
+    try:
+        within_base = os.path.commonpath([str(BASE_DIR), candidate]) == str(BASE_DIR)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=f"Invalid path: {path_str}") from exc
+    if not within_base:
         raise HTTPException(status_code=400, detail=f"Path escapes base directory: {path_str}")
-    return resolved
+    return Path(candidate)
 
 
 @app.get("/health")
@@ -66,7 +83,11 @@ async def render(req: RenderRequest) -> RenderResponse:
             )
         return RenderResponse(status="success", output_file=output_file)
     except TimeoutError:
-        raise HTTPException(status_code=504, detail="Render timeout")
+        raise HTTPException(
+            status_code=504,
+            detail=f"Rendering exceeded timeout of {RENDER_TIMEOUT_SECONDS} seconds. "
+            "Try with smaller dataset or increase RENDER_TIMEOUT_SECONDS.",
+        )
     except (FileNotFoundError, ValueError, PermissionError) as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except HTTPException:

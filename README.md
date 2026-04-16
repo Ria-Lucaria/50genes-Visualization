@@ -37,15 +37,15 @@
 ### 1) 安装依赖
 
 ```bash
-pip install -r /home/runner/work/50genes-Visualization/50genes-Visualization/requirements.txt
+pip install -r requirements.txt
 ```
 
 ### 2) 命令行调用
 
 ```bash
-python /home/runner/work/50genes-Visualization/50genes-Visualization/cli.py \
-  --input /绝对路径/your.csv \
-  --output-dir /绝对路径/output \
+python cli.py \
+  --input ./data/your.csv \
+  --output-dir ./output \
   --prefix Fig6 \
   --format svg
 ```
@@ -59,7 +59,7 @@ python /home/runner/work/50genes-Visualization/50genes-Visualization/cli.py \
 ### 1) 启动服务（默认 8000）
 
 ```bash
-python /home/runner/work/50genes-Visualization/50genes-Visualization/api.py
+python api.py
 ```
 
 或：
@@ -86,8 +86,8 @@ uvicorn api:app --host 0.0.0.0 --port 8000
 
 ```json
 {
-  "csv_path": "/绝对路径/your.csv",
-  "output_dir": "/绝对路径/output",
+  "csv_path": "data/your.csv",
+  "output_dir": "output",
   "filename_prefix": "Fig6",
   "output_format": "svg"
 }
@@ -98,12 +98,12 @@ uvicorn api:app --host 0.0.0.0 --port 8000
 ```json
 {
   "status": "success",
-  "output_file": "/绝对路径/output/Fig6+20260416_000000.svg"
+  "output_file": "/path/to/base_dir/output/Fig6+20260416_000000.svg"
 }
 ```
 
 错误响应：
-- `400`：输入校验失败、文件不存在、列名错误、路径越界、输出目录无权限
+- `400`：输入校验失败、文件不存在、列名错误、绝对路径/路径越界、输出目录无权限
 - `504`：渲染超时
 - `500`：服务内部异常
 
