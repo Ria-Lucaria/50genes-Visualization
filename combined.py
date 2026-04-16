@@ -25,9 +25,6 @@ def _load_and_prepare_data(csv_path: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
         df = df.rename(columns={"Unnamed: 0": "Gene"})
     elif df.columns[0] == "":
         df.columns.values[0] = "Gene"
-    elif "Gene" not in df.columns and len(df.columns) >= 3:
-        df = df.rename(columns={df.columns[0]: "Gene", df.columns[1]: "NC", df.columns[2]: "dCas9"})
-
     required_cols = {"Gene", "NC", "dCas9"}
     if not required_cols.issubset(df.columns):
         raise ValueError(f"CSV must contain columns: {sorted(required_cols)}")
