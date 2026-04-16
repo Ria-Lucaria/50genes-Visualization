@@ -31,3 +31,85 @@
 6. 当前已知提示（不影响出图）
 - `seaborn` 关于 `palette` 用法存在 FutureWarning。
 - 系统未安装 `Arial` 时会出现字体回退提示（`findfont: Font family 'Arial' not found.`）。
+
+## CLI 用法
+
+### 1) 安装依赖
+
+```bash
+pip install -r /home/runner/work/50genes-Visualization/50genes-Visualization/requirements.txt
+```
+
+### 2) 命令行调用
+
+```bash
+python /home/runner/work/50genes-Visualization/50genes-Visualization/cli.py \
+  --input /绝对路径/your.csv \
+  --output-dir /绝对路径/output \
+  --prefix Fig6 \
+  --format svg
+```
+
+- 成功：退出码 `0`，输出 `SUCCESS: <output_file>`
+- 参数/数据错误：退出码 `2`，输出 `ERROR: ...`
+- 未预期错误：退出码 `1`，输出 `UNEXPECTED_ERROR: ...`
+
+## API 用法（OpenClaw 可直接调用）
+
+### 1) 启动服务（默认 8000）
+
+```bash
+python /home/runner/work/50genes-Visualization/50genes-Visualization/api.py
+```
+
+或：
+
+```bash
+uvicorn api:app --host 0.0.0.0 --port 8000
+```
+
+### 2) 健康检查
+
+`GET /health`
+
+响应：
+
+```json
+{"status":"ok"}
+```
+
+### 3) 绘图接口契约（OpenClaw 配置用）
+
+`POST /render`
+
+请求体：
+
+```json
+{
+  "csv_path": "/绝对路径/your.csv",
+  "output_dir": "/绝对路径/output",
+  "filename_prefix": "Fig6",
+  "output_format": "svg"
+}
+```
+
+成功响应（200）：
+
+```json
+{
+  "status": "success",
+  "output_file": "/绝对路径/output/Fig6+20260416_000000.svg"
+}
+```
+
+错误响应：
+- `400`：输入校验失败、文件不存在、列名错误、路径越界、输出目录无权限
+- `504`：渲染超时
+- `500`：服务内部异常
+
+### 4) 安全与稳定性参数
+
+- `PORT`：监听端口（默认 `8000`）
+- `RENDER_BASE_DIR`：API 允许访问的根目录（默认当前工作目录）
+- `RENDER_TIMEOUT_SECONDS`：单次渲染超时（默认 `120` 秒）
+- `MAX_CONCURRENT_RENDER`：最大并发渲染数（默认 `2`）
